@@ -3,6 +3,31 @@ import socket
 import threading
 import re
 import time
+import json
+"""
+rio added the following data
+
+"""
+dijkstra = {
+    # "100": {
+    #     "parent" : None,
+    #     "cost" : 1000
+    # },
+    # "200": {
+    #     "parent" : None,
+    #     "cost" : 1000
+    # },
+    # "300": {
+    #     "parent" : None,
+    #     "cost" : 1000
+    # },
+    # "400": {
+    #     "parent" : None,
+    #     "cost" : 1000
+    # }
+}
+
+
 
 #constructor for Route Controller object
 class RouteController:
@@ -12,6 +37,10 @@ class RouteController:
         self.ip = ip
         self.cost = cost
         self.bandwidth = bandwidth
+        dijkstra[self.identifier] = {
+            "parent" : self.identifier,
+            "cost" : 0
+        }
 
 #constructor for Data Center object
 class DataCenter:
@@ -75,6 +104,24 @@ def UdpServer(identifier):
     while True:
         data, addr = server_socket.recvfrom(1024)
         print("Received message from {}: {}".format(addr, data.decode()))
+        """
+        parse data gram and use it to calculate shortest path 
+        """
+        recv_data = json.loads(data.decode())
+        print("dijkstra")
+        print(dijkstra)
+        for node in recv_data["dijkstra"]:
+            print("node")
+            print(node)
+            if node not in dijkstra:
+                dijkstra[node] = recv_data["dijkstra"][node]
+                dijkstra[node]["cost"] += recv_data["cost"]
+            else:
+                if dijkstra[node]["cost"] > recv_data["dijkstra"][node]["cost"] + recv_data["cost"]:
+                    dijkstra[node] = recv_data["dijkstra"][node] + recv_data["cost"]
+
+        print(dijkstra)
+
 
 def CreateClientAddressList(RCList):
     AddressList = []
@@ -97,7 +144,18 @@ def PeriodicMessages(AddressList, LocalConfig, RCList, DCList):
     
     while True:
         for i in range(len(AddressList)):
-            message = f"[{LocalConfig.identifier}, {LocalConfig.asn}, {RCList[i].cost}, {RCList[i].bandwidth}, [{ConnectedDCString}]]"
+            # message = f"[{LocalConfig.identifier}, {LocalConfig.asn}, {RCList[i].cost}, {RCList[i].bandwidth}, [{ConnectedDCString}]]"
+            message_data = {
+                "local_id" : LocalConfig.identifier,
+                "asn" : LocalConfig.asn,
+                "cost" : RCList[i].cost,
+                "bandwidth" : RCList[i].bandwidth,
+                "DC" : [ConnectedDCString],
+                "dijkstra" : dijkstra
+            }
+            print(message_data)
+            message = json.dumps(message_data)
+            # message = f"{{\"local_id\" : {LocalConfig.identifier}, \"asn\" : {LocalConfig.asn},\"cost\" : {RCList[i].cost}, \"bandwidth\" : {RCList[i].bandwidth}, \"DC\" : [{ConnectedDCString}], \"dijkstra\" : {dijkstra} }}" 
             try:
 
                 client_socket.sendto(message.encode(), AddressList[i])
