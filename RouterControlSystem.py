@@ -1,4 +1,8 @@
 import configparser
+import socket
+import threading
+import re
+import time
 
 #constructor for Route Controller object
 class RouteController:
@@ -43,12 +47,72 @@ def ParseRouteControllerConfig():
         DCConfig = DataCenter(DCiD, GetKeyValuePairs(DCiD, 'Bandwidth'), GetKeyValuePairs(DCiD, 'Cost'))
         DCList.append(DCConfig)
     
-    return LocalConfig, RCList, DCList
+    return LocalConfig, RCList, DCList, NumConnectedRCs, NumConnectedDCs
 
-LocalConfig, RCList, DCList = ParseRouteControllerConfig()
+LocalConfig, RCList, DCList, NumConnectedRCs, NumConnectedDCs = ParseRouteControllerConfig()
+
+"""
+#For Debug
+
 print(f'{LocalConfig.identifier} {LocalConfig.asn} {LocalConfig.bandwidth} {LocalConfig.cost} {LocalConfig.ip}')
 for config in RCList:
     print(f'{config.identifier} {config.asn} {config.bandwidth} {config.cost} {config.ip}')
 
 for config in DCList:
     print(f'{config.identifier} {config.cost} {config.bandwidth}')
+
+"""
+#Initialize UDP server socket
+def UdpServer(identifier):
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    UDP_IP = "127.0.0.1"
+    #extract unique number from identifier using regex
+    identifier_number = int(re.search(r'\d+', identifier).group())  # Extract numeric part using regex
+
+    UDP_PORT = 65000 + identifier_number
+    server_socket.bind((UDP_IP, UDP_PORT))
+    print("UDP server started on {}:{}".format(UDP_IP, UDP_PORT))
+    while True:
+        data, addr = server_socket.recvfrom(1024)
+        print("Received message from {}: {}".format(addr, data.decode()))
+
+def CreateClientAddressList(RCList):
+    AddressList = []
+    for RC in RCList:
+        identifier_number = int(re.search(r'\d+', RC.identifier).group())  # Extract numeric part using regex
+        addr = (RC.ip, 65000+identifier_number)
+        AddressList.append(addr)
+    return AddressList
+
+AddressList = CreateClientAddressList(RCList)
+
+def PeriodicMessages(AddressList, LocalConfig, RCList, DCList):
+    #Periodically send RCU Message
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    #build connected DC List
+    ConnectedDCString =''
+    for DC in DCList:
+        ConnectedDCString += f'{DC.identifier},'
+    
+    while True:
+        for i in len(AddressList):
+            message = f"[{LocalConfig.identifier}, {LocalConfig.asn}, {RCList[i].cost}, {RCList[i].bandwidth}, [{ConnectedDCString}]]"
+            try:
+
+                client_socket.sendto(message.encode(), AddressList[i])
+                print(f"Data sent from client to server {AddressList[i]}: {message}")
+            
+            except socket.error as err:
+                print(f"Failed to send data from client to server {AddressList[i]}: {err}")
+
+        # Sleep for 180 s
+        time.sleep(180)
+
+# Create and start the server thread with inputs
+server_thread = threading.Thread(target=UdpServer, args=(LocalConfig.identifier,))
+server_thread.start()
+
+# Create a thread for sending messages periodically
+message_thread = threading.Thread(target=PeriodicMessages, args=(AddressList, LocalConfig, RCList, DCList))
+message_thread.start()
