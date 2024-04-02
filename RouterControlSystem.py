@@ -80,11 +80,11 @@ def CreateClientAddressList(RCList):
     AddressList = []
     for RC in RCList:
         identifier_number = int(re.search(r'\d+', RC.identifier).group())  # Extract numeric part using regex
-        addr = (RC.ip, 65000+identifier_number)
+        addr = ("127.0.0.1", 65000+identifier_number)
         AddressList.append(addr)
     return AddressList
 
-AddressList = CreateClientAddressList(RCList)
+AddrList = CreateClientAddressList(RCList)
 
 def PeriodicMessages(AddressList, LocalConfig, RCList, DCList):
     #Periodically send RCU Message
@@ -96,7 +96,7 @@ def PeriodicMessages(AddressList, LocalConfig, RCList, DCList):
         ConnectedDCString += f'{DC.identifier},'
     
     while True:
-        for i in len(AddressList):
+        for i in range(len(AddressList)):
             message = f"[{LocalConfig.identifier}, {LocalConfig.asn}, {RCList[i].cost}, {RCList[i].bandwidth}, [{ConnectedDCString}]]"
             try:
 
@@ -107,12 +107,12 @@ def PeriodicMessages(AddressList, LocalConfig, RCList, DCList):
                 print(f"Failed to send data from client to server {AddressList[i]}: {err}")
 
         # Sleep for 180 s
-        time.sleep(180)
+        time.sleep(10)
 
 # Create and start the server thread with inputs
 server_thread = threading.Thread(target=UdpServer, args=(LocalConfig.identifier,))
 server_thread.start()
 
 # Create a thread for sending messages periodically
-message_thread = threading.Thread(target=PeriodicMessages, args=(AddressList, LocalConfig, RCList, DCList))
+message_thread = threading.Thread(target=PeriodicMessages, args=(AddrList, LocalConfig, RCList, DCList))
 message_thread.start()
