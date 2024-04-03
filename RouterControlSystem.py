@@ -9,22 +9,22 @@ rio added the following data
 
 """
 dijkstra = {
-    # "100": {
-    #     "parent" : None,
-    #     "cost" : 1000
-    # },
-    # "200": {
-    #     "parent" : None,
-    #     "cost" : 1000
-    # },
-    # "300": {
-    #     "parent" : None,
-    #     "cost" : 1000
-    # },
-    # "400": {
-    #     "parent" : None,
-    #     "cost" : 1000
-    # }
+    "RC1": {
+        "parent" : "RC1",
+        "cost" : 1000
+    },
+    "RC2": {
+        "parent" : "RC2",
+        "cost" : 1000
+    },
+    "RC3": {
+        "parent" : "RC3",
+        "cost" : 1000
+    },
+    "RC4": {
+        "parent" : "RC4",
+        "cost" : 1000
+    }
 }
 
 
@@ -37,10 +37,7 @@ class RouteController:
         self.ip = ip
         self.cost = cost
         self.bandwidth = bandwidth
-        dijkstra[self.identifier] = {
-            "parent" : self.identifier,
-            "cost" : 0
-        }
+
 
 #constructor for Data Center object
 class DataCenter:
@@ -108,18 +105,17 @@ def UdpServer(identifier):
         parse data gram and use it to calculate shortest path 
         """
         recv_data = json.loads(data.decode())
-        print("dijkstra")
-        print(dijkstra)
-        for node in recv_data["dijkstra"]:
-            print("node")
-            print(node)
-            if node not in dijkstra:
-                dijkstra[node] = recv_data["dijkstra"][node]
-                dijkstra[node]["cost"] += recv_data["cost"]
-            else:
-                if dijkstra[node]["cost"] > recv_data["dijkstra"][node]["cost"] + recv_data["cost"]:
-                    dijkstra[node] = recv_data["dijkstra"][node] + recv_data["cost"]
-
+        # print(recv_data)
+        for node in recv_data["dijkstra"].keys():
+            print("")
+            print("")
+            if dijkstra[node]["cost"] > recv_data["dijkstra"][node]["cost"] + recv_data["cost"]:
+                dijkstra[node]["cost"] = recv_data["dijkstra"][node]["cost"] + recv_data["cost"]
+            # print(dijkstra[node])
+        """
+        note to mohib- the next hop is the parent of the node in the dijkstra dictionary,
+        it will converge to best path
+        """
         print(dijkstra)
 
 
@@ -134,6 +130,10 @@ def CreateClientAddressList(RCList):
 AddrList = CreateClientAddressList(RCList)
 
 def PeriodicMessages(AddressList, LocalConfig, RCList, DCList):
+    dijkstra[LocalConfig.identifier] = {
+        "parent" : LocalConfig.identifier,
+        "cost" : 0
+    }
     #Periodically send RCU Message
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
