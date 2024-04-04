@@ -150,7 +150,7 @@ def PeriodicMessages(AddressList, LocalConfig, RCList, DCList):
         "parent" : LocalConfig.identifier,
         "cost" : 0
     }
-    #Periodically send RCU Message
+    #Periodically send RCU Messages
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     #build connected DC List
