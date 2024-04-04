@@ -88,35 +88,51 @@ for config in DCList:
     print(f'{config.identifier} {config.cost} {config.bandwidth}')
 
 """
+
+def print_routing_table(dijkstra):
+    print("Routing Table:")
+    print(f"{'Destination':<12} {'Next Hop':<12} {'Cost':<6} {'Bandwidth':<10}")
+    print("-" * 40)  # Print a divider line for clarity
+    for destination, info in dijkstra.items():
+        # Use dict.get(key, default) to provide a default value for bandwidth if it's not present
+        bandwidth = info.get('bandwidth', 'N/A')  # 'N/A' or perhaps 0 or any default you see fit
+        print(f"{destination:<12} {info['parent']:<12} {info['cost']:<6} {bandwidth:<10}")
+
 #Initialize UDP server socket
 def UdpServer(identifier):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     UDP_IP = "127.0.0.1"
-    #extract unique number from identifier using regex
-    identifier_number = int(re.search(r'\d+', identifier).group())  # Extract numeric part using regex
-
+    identifier_number = int(re.search(r'\d+', identifier).group())
     UDP_PORT = 65000 + identifier_number
     server_socket.bind((UDP_IP, UDP_PORT))
     print("UDP server started on {}:{}".format(UDP_IP, UDP_PORT))
     while True:
         data, addr = server_socket.recvfrom(1024)
         print("Received message from {}: {}".format(addr, data.decode()))
-        """
-        parse data gram and use it to calculate shortest path 
-        """
         recv_data = json.loads(data.decode())
-        # print(recv_data)
+
         for node in recv_data["dijkstra"].keys():
-            print("")
-            print("")
-            if dijkstra[node]["cost"] > recv_data["dijkstra"][node]["cost"] + recv_data["cost"]:
-                dijkstra[node]["cost"] = recv_data["dijkstra"][node]["cost"] + recv_data["cost"]
-            # print(dijkstra[node])
-        """
-        note to mohib- the next hop is the parent of the node in the dijkstra dictionary,
-        it will converge to best path
-        """
-        print(dijkstra)
+            new_cost = recv_data["dijkstra"][node]["cost"] + recv_data["cost"]
+            new_bandwidth = recv_data["bandwidth"]
+
+            normalized_bandwidth = 1000 / max(new_bandwidth, 1)  
+
+            # Calculate the weighted score for the new path
+            new_score = (new_cost * 0.6) + (normalized_bandwidth * 0.4)
+
+            # Calculate the current weighted score for comparison
+            current_cost = dijkstra[node]["cost"]
+            current_bandwidth = dijkstra[node].get("bandwidth", 1000)  # Use a default value if not set
+            normalized_current_bandwidth = 1000 / max(current_bandwidth, 1)
+            current_score = (current_cost * 0.6) + (normalized_current_bandwidth * 0.4)
+
+            if new_score < current_score:
+                dijkstra[node]["cost"] = new_cost
+                dijkstra[node]["bandwidth"] = new_bandwidth  # Store the bandwidth for information
+                dijkstra[node]["parent"] = recv_data["local_id"]
+
+        print_routing_table(dijkstra)
+
 
 
 def CreateClientAddressList(RCList):
